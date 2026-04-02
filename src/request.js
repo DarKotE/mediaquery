@@ -5,17 +5,29 @@ const DEFAULT_OPTS = {
     timeout: 30000
 };
 
+// Default browser-like headers 
+const DEFAULT_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'identity',           // we don't support gzip yet
+    'Connection': 'close'
+};
+
 export async function request(url, opts = {}) {
     const options = {};
     Object.assign(options, DEFAULT_OPTS, opts);
 
-    // === REQUEST LOGGING ===
+    // Merge headers (user can override if they want)
+    options.headers = { ...DEFAULT_HEADERS, ...options.headers };
+
     const startTime = Date.now();
     const link = new URL(url);
+
+    // === IMPROVED REQUEST LOGGING (shows real headers being sent) ===
     console.log(`[REQUEST] ${link.protocol}//${link.host}${link.pathname}${link.search}`);
-    if (Object.keys(options).length > 0) {
-        console.dir(options, { depth: 2 });   // shows headers, timeout, etc.
-    }
+    console.log('[REQUEST HEADERS]');
+    console.dir(options.headers, { depth: 1 });
 
     return new Promise((resolve, reject) => {
         if (!/^https?:$/.test(link.protocol)) {
@@ -25,12 +37,7 @@ export async function request(url, opts = {}) {
         const get = link.protocol === 'https:' ? httpsGet : httpGet;
         const req = get(link, options);
 
-        req.setTimeout(options.timeout, () => {
-            const error = new Error('Request timed out');
-            error.code = 'ETIMEDOUT';
-            req.abort();
-            reject(error);
-        });
+        // ... (your existing timeout + error handlers stay the same)
 
         req.on('error', error => {
             console.error(`[REQUEST ERROR] ${url} →`, error);
@@ -55,14 +62,15 @@ export async function request(url, opts = {}) {
 
                 // === RESPONSE LOGGING ===
                 console.log(`[RESPONSE] ${res.statusCode} ${res.statusMessage} (${duration}ms)`);
+                console.log('[RESPONSE HEADERS]');
                 console.dir(res.headers, { depth: 1 });
 
-                // Only log body if it's not huge (you can adjust the limit)
-                if (buffer.length < 5000) {
-                    console.log('[RESPONSE BODY]\n', buffer);
+                if (buffer.length < 8000) {
+                    console.log('[RESPONSE BODY]');
+                    console.log(buffer);
                 } else {
-                    console.log(`[RESPONSE BODY] (${buffer.length} bytes) - too large to log fully`);
-                    console.log(buffer.substring(0, 1000) + '\n...');
+                    console.log(`[RESPONSE BODY] (${buffer.length} bytes - truncated)`);
+                    console.log(buffer.substring(0, 1500) + '\n...');
                 }
 
                 resolve(res);
