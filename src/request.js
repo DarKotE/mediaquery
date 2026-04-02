@@ -8,15 +8,20 @@ const DEFAULT_OPTS = {
 export async function request(url, opts = {}) {
     const options = {};
     Object.assign(options, DEFAULT_OPTS, opts);
+
+    // === REQUEST LOGGING ===
+    const startTime = Date.now();
+    const link = new URL(url);
+    console.log(`[REQUEST] ${link.protocol}//${link.host}${link.pathname}${link.search}`);
+    if (Object.keys(options).length > 0) {
+        console.dir(options, { depth: 2 });   // shows headers, timeout, etc.
+    }
+
     return new Promise((resolve, reject) => {
-        const link = new URL(url);
         if (!/^https?:$/.test(link.protocol)) {
-            return reject(new Error(
-                `Unacceptable protocol "${link.protocol}"`
-            ));
+            return reject(new Error(`Unacceptable protocol "${link.protocol}"`));
         }
 
-        // this is fucking stupid
         const get = link.protocol === 'https:' ? httpsGet : httpGet;
         const req = get(link, options);
 
@@ -28,6 +33,7 @@ export async function request(url, opts = {}) {
         });
 
         req.on('error', error => {
+            console.error(`[REQUEST ERROR] ${url} →`, error);
             reject(error);
         });
 
@@ -37,7 +43,6 @@ export async function request(url, opts = {}) {
 
             res.on('data', data => {
                 buffer += data;
-
                 if (options.maxResponseSize && buffer.length > options.maxResponseSize) {
                     req.abort();
                     reject(new Error('Response size limit exceeded'));
@@ -45,7 +50,21 @@ export async function request(url, opts = {}) {
             });
 
             res.on('end', () => {
+                const duration = Date.now() - startTime;
                 res.data = buffer;
+
+                // === RESPONSE LOGGING ===
+                console.log(`[RESPONSE] ${res.statusCode} ${res.statusMessage} (${duration}ms)`);
+                console.dir(res.headers, { depth: 1 });
+
+                // Only log body if it's not huge (you can adjust the limit)
+                if (buffer.length < 5000) {
+                    console.log('[RESPONSE BODY]\n', buffer);
+                } else {
+                    console.log(`[RESPONSE BODY] (${buffer.length} bytes) - too large to log fully`);
+                    console.log(buffer.substring(0, 1000) + '\n...');
+                }
+
                 resolve(res);
             });
         });
