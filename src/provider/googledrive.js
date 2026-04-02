@@ -90,7 +90,8 @@ function fetchAndParse(id, options = {}) {
 };
 
 export function lookup(id) {
-    return fetchAndParse(id, { fetchSubtitles: true });
+    // return fetchAndParse(id, { fetchSubtitles: true });
+    return fetchAndParse(id, { fetchSubtitles: false });
 }
 
 export function getSubtitles(id, vid) {
