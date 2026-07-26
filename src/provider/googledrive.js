@@ -69,7 +69,7 @@ function fetchAndParse(id, options = {}) {
             id,
             type: 'googledrive',
             title: doc.title,
-            duration: parseInt(doc.length_seconds, 10),
+            duration: extractDuration(doc),
             meta: {
                 thumbnail: doc.iurl,
                 direct: videos
@@ -88,6 +88,47 @@ function fetchAndParse(id, options = {}) {
         }
     });
 };
+
+function extractDuration(doc) {
+    // 1. Preferred (when present)
+    if (doc.length_seconds) {
+        const secs = parseInt(doc.length_seconds, 10);
+        if (!Number.isNaN(secs) && secs > 0) return secs;
+    }
+
+    // 2. From player_response JSON
+    if (doc.player_response) {
+        try {
+            const pr = JSON.parse(doc.player_response);
+            const formats = [
+                ...(pr.streamingData?.adaptiveFormats || []),
+                ...(pr.streamingData?.formats || [])
+            ];
+            for (const f of formats) {
+                if (f.approxDurationMs) {
+                    const ms = parseInt(f.approxDurationMs, 10);
+                    if (!Number.isNaN(ms) && ms > 0) {
+                        return Math.round(ms / 1000);
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore parse errors
+        }
+    }
+
+    // 3. From any stream URL that contains dur=
+    const maps = [doc.fmt_stream_map, doc.url_encoded_fmt_stream_map].filter(Boolean);
+    for (const map of maps) {
+        const m = map.match(/[?&]dur=([\d.]+)/);
+        if (m) {
+            const secs = Math.round(parseFloat(m[1]));
+            if (!Number.isNaN(secs) && secs > 0) return secs;
+        }
+    }
+
+    return 0; // or throw if you prefer
+}
 
 export function lookup(id) {
     // return fetchAndParse(id, { fetchSubtitles: true });
