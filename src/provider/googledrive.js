@@ -16,7 +16,7 @@ const extractHexId = function(url) {
 };
 
 function fetchAndParse(id, options = {}) {
-    const url = `https://docs.google.com/get_video_info?authuser=&docid=${id}&sle=true&hl=en`;
+    const url = `https://drive.google.com/get_video_info?authuser=&docid=${id}&sle=true&hl=en`;
 
     return request(url, options).then(function(res) {
         if (res.statusCode !== 200) {
