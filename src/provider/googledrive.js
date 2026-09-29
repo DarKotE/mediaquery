@@ -48,7 +48,9 @@ async function fetchAndParse(id, options = {}) {
     const res = await request(url, {
         ...options,
         headers: {
-            ...DEFAULT_HEADERS,
+            'Referer': 'https://drive.google.com/',
+            'Origin': 'https://drive.google.com/',
+            'Accept': 'application/json',
             ...(options.headers || {})
         }
     });
